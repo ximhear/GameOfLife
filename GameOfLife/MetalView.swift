@@ -120,6 +120,7 @@ struct MetalView: UIViewRepresentable {
                 SIMD2<Float>( 0.5,  0.5),
             ]
             quadVerticesBuffer = device.makeBuffer(bytes: quadVertices, length: quadVertices.count * MemoryLayout<SIMD2<Float>>.size, options: [])
+            useBuffer0AsInput = true
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -128,8 +129,15 @@ struct MetalView: UIViewRepresentable {
 
         func draw(in view: MTKView) {
             guard let drawable = view.currentDrawable,
-                  let renderPassDescriptor = view.currentRenderPassDescriptor else { return }
+                  let renderPassDescriptor = view.currentRenderPassDescriptor else {
+                GZLogFunc()
+                return
+            }
 
+            if gameOptions.updateNeeded {
+                GZLogFunc()
+                return
+            }
             // 시간 계산
             let timestep = 1.0 / Double(gameOptions.timestep)
             timeSinceLastUpdate += 1.0 / Double(view.preferredFramesPerSecond)
@@ -140,7 +148,10 @@ struct MetalView: UIViewRepresentable {
             timeSinceLastUpdate -= timestep
 
             // 커맨드 버퍼 생성
-            guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
+            guard let commandBuffer = commandQueue.makeCommandBuffer() else {
+                GZLogFunc()
+                return
+            }
 
             // Compute 패스
             if let computeEncoder = commandBuffer.makeComputeCommandEncoder() {
@@ -165,6 +176,9 @@ struct MetalView: UIViewRepresentable {
                 computeEncoder.dispatchThreadgroups(threadgroups, threadsPerThreadgroup: threadgroupSize)
                 computeEncoder.endEncoding()
             }
+            else {
+                GZLogFunc()
+            }
 
             // Render 패스
             if let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
@@ -182,6 +196,10 @@ struct MetalView: UIViewRepresentable {
 
                 renderEncoder.endEncoding()
             }
+            else {
+                GZLogFunc()
+            }
+            
 
             // 화면에 출력 및 커맨드 버퍼 커밋
             commandBuffer.present(drawable)
